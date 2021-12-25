@@ -45,7 +45,7 @@ def parse_arguments(cmdargs=None):
     parser = argparse.ArgumentParser()
 
     def compile_expr(expr):
-        compile(expr, "pwk_expr", "eval")
+        return compile(expr, "pwk_expr", "eval")
 
     parser.add_argument("expr", type=compile_expr)
     parser.add_argument("file", type=open, nargs="?", default=sys.stdin)
