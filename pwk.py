@@ -6,9 +6,11 @@ import itertools
 import math
 import re
 import sys
+from types import CodeType
+from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, TextIO
 
 
-def evaluate(expr, field_values):
+def evaluate(expr: CodeType, field_values: Dict[int, Any]):
     globals = {f"_{i}": field for i, field in field_values.items()}
     globals.update(math.__dict__)
     # TODO: better way to disallow user stupidity?
@@ -17,7 +19,7 @@ def evaluate(expr, field_values):
 
     try:
         result = eval(expr, globals)
-        if isinstance(result, (tuple, list)):  # TODO: check if iterable
+        if isinstance(result, Iterable):
             result = tuple(field for field in result)
         else:
             result = (result,)
@@ -26,13 +28,15 @@ def evaluate(expr, field_values):
     return result
 
 
-def process(expr, rows):
+def process(expr: CodeType, rows: Iterable[Sequence[Any]]):
     for fields in rows:
-        result = evaluate(expr, {i: field for i, field in enumerate([fields] + fields)})
+        result = evaluate(
+            expr, {i: field for i, field in enumerate((fields,) + tuple(fields))}
+        )
         yield result
 
 
-def process_aggregate(expr, rows):
+def process_aggregate(expr: CodeType, rows: Iterable[Sequence[Any]]):
     mentioned_fields = set()
     for name in expr.co_names:
         match = re.match(r"^_(\d+)$", name)
@@ -51,11 +55,11 @@ def process_aggregate(expr, rows):
     yield result
 
 
-def preprocess_nothing(field):
+def preprocess_nothing(field: Any):
     return field
 
 
-def preprocess_numbers(field):
+def preprocess_numbers(field: Any):
     try:
         return int(field)
     except ValueError:
@@ -65,7 +69,7 @@ def preprocess_numbers(field):
             return field
 
 
-def parse_arguments(cmdargs=None):
+def parse_arguments(cmdargs: Optional[Sequence[str]] = None):
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--help", action="help")
 
@@ -97,7 +101,7 @@ def parse_arguments(cmdargs=None):
     return args
 
 
-def main(cmdargs, out):
+def main(cmdargs: Optional[Sequence[str]], output_file: TextIO):
     args = parse_arguments(cmdargs)
 
     if args.string_numbers:
@@ -107,6 +111,7 @@ def main(cmdargs, out):
         preprocess = preprocess_numbers
         postprocess = str
 
+    reader: Iterator[Sequence[str]]
     if args.input_format == "csv":
         reader = csv.reader(args.file, delimiter=",")
     elif args.input_format == "tsv":
@@ -115,14 +120,14 @@ def main(cmdargs, out):
         reader = ((line[:-1],) for line in args.file)
 
     if args.output_format == "csv":
-        writer = csv.writer(out, delimiter=",").writerow
+        writer = csv.writer(output_file, delimiter=",").writerow
     elif args.output_format == "tsv":
-        writer = csv.writer(out, delimiter="\t").writerow
+        writer = csv.writer(output_file, delimiter="\t").writerow
     elif args.output_format == "plain":
 
         def writer(fields):
-            out.write("\t".join(fields))
-            out.write("\n")
+            output_file.write("\t".join(fields))
+            output_file.write("\n")
 
     if args.header:
         next(reader)
