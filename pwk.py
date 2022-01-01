@@ -137,7 +137,7 @@ def main(cmdargs: Optional[Sequence[str]], output_file: TextIO):
     elif args.input_format == "tsv":
         reader = csv.reader(args.file, delimiter="\t")
     elif args.input_format == "plain":
-        reader = ((line[:-1],) for line in args.file)
+        reader = ((line.rstrip("\n\r"),) for line in args.file)
 
     if args.output_format == "csv":
         writer = csv.writer(output_file, delimiter=",").writerow
