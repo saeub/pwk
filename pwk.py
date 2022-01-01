@@ -10,8 +10,14 @@ from types import CodeType
 from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, TextIO
 
 
-def evaluate(expr: CodeType, field_values: Dict[int, Any]):
+def evaluate(
+    expr: CodeType,
+    field_values: Dict[int, Any],
+    field_names: Optional[Sequence[str]] = None,
+):
     globals = {f"_{i}": field for i, field in field_values.items()}
+    if field_names is not None:
+        globals["_"] = {name: field_values[i + 1] for i, name in enumerate(field_names)}
     globals.update(math.__dict__)
     # TODO: better way to disallow user stupidity?
     globals["input"] = None
@@ -28,30 +34,45 @@ def evaluate(expr: CodeType, field_values: Dict[int, Any]):
     return result
 
 
-def process(expr: CodeType, rows: Iterable[Sequence[Any]]):
+def process(
+    expr: CodeType,
+    rows: Iterable[Sequence[Any]],
+    field_names: Optional[Sequence[str]] = None,
+):
     for fields in rows:
         result = evaluate(
-            expr, {i: field for i, field in enumerate((fields,) + tuple(fields))}
+            expr,
+            {i: field for i, field in enumerate((fields,) + tuple(fields))},
+            field_names=field_names,
         )
         yield result
 
 
-def process_aggregate(expr: CodeType, rows: Iterable[Sequence[Any]]):
-    mentioned_fields = set()
-    for name in expr.co_names:
-        match = re.match(r"^_(\d+)$", name)
-        if match is not None:
-            field_number = int(match.group(1))
-            if field_number > 0:
-                mentioned_fields.add(field_number)
+def process_aggregate(
+    expr: CodeType,
+    rows: Iterable[Sequence[Any]],
+    field_names: Optional[Sequence[str]] = None,
+):
+    if field_names is not None:
+        num_fields = len(field_names)
+    else:
+        highest_mentioned_field_number = 0
+        for name in expr.co_names:
+            match = re.match(r"^_(\d+)$", name)
+            if match is not None:
+                field_number = int(match.group(1))
+                if field_number > highest_mentioned_field_number:
+                    highest_mentioned_field_number = field_number
+        num_fields = highest_mentioned_field_number
+
     field_values = {}
-    row_iterators = itertools.tee(rows, len(mentioned_fields))
-    for field_number, row_iterator in zip(mentioned_fields, row_iterators):
-        field_values[field_number] = [
-            fields[field_number - 1] for fields in row_iterator
+    row_iterators = itertools.tee(rows, num_fields)
+    for field_number, row_iterator in enumerate(row_iterators):
+        field_values[field_number + 1] = [
+            fields[field_number] for fields in row_iterator
         ]
 
-    result = evaluate(expr, field_values)
+    result = evaluate(expr, field_values, field_names=field_names)
     yield result
 
 
@@ -70,8 +91,7 @@ def preprocess_numbers(field: Any):
 
 
 def parse_arguments(cmdargs: Optional[Sequence[str]] = None):
-    parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--help", action="help")
+    parser = argparse.ArgumentParser()
 
     def compile_expr(expr):
         return compile(expr, "pwk_expr", "eval")
@@ -84,7 +104,7 @@ def parse_arguments(cmdargs: Optional[Sequence[str]] = None):
 
     parser.add_argument("-s", dest="string_numbers", action="store_true")
     parser.add_argument("-a", dest="aggregate", action="store_true")
-    parser.add_argument("-h", dest="header", action="store_true")
+    parser.add_argument("-H", dest="header", action="store_true")
 
     args = parser.parse_args(cmdargs)
 
@@ -129,15 +149,16 @@ def main(cmdargs: Optional[Sequence[str]], output_file: TextIO):
             output_file.write("\t".join(fields))
             output_file.write("\n")
 
+    field_names = None
     if args.header:
-        next(reader)
+        field_names = next(reader)
 
     rows = ([preprocess(field) for field in fields] for fields in reader)
 
     if args.aggregate:
-        processor = process_aggregate(args.expr, rows)
+        processor = process_aggregate(args.expr, rows, field_names=field_names)
     else:
-        processor = process(args.expr, rows)
+        processor = process(args.expr, rows, field_names=field_names)
 
     for fields in processor:
         writer([postprocess(field) for field in fields])
