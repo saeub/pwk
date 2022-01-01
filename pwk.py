@@ -77,7 +77,7 @@ INCLUDE_GLOBALS = {
 }
 
 
-def get_outputs(obj: Any) -> Tuple[str, ...]:
+def get_outputs(obj: Any, recurse: bool = True) -> Tuple[str, ...]:
     if isinstance(obj, str):
         return (obj,)
     if isinstance(obj, Match):
@@ -85,7 +85,10 @@ def get_outputs(obj: Any) -> Tuple[str, ...]:
             return tuple(obj.groups())
         return (obj.group(0),)
     if isinstance(obj, Iterable):
-        return tuple(output for field in obj for output in get_outputs(field))
+        if recurse:
+            return tuple(
+                output for field in obj for output in get_outputs(field, recurse=False)
+            )
     return (str(obj),)
 
 

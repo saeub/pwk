@@ -83,3 +83,20 @@ def test_regex():
     with open("test_files/regex_output.csv", newline="") as output_file:
         expected_output = output_file.read()
     assert output.getvalue() == expected_output
+
+
+def test_iterable():
+    output = StringIO()
+    pwk.main(
+        [
+            "tuple(_1), list(enumerate(_2))",
+            "test_files/iterable.csv",
+            "-s",
+            "-o",
+            "csv",
+        ],
+        output,
+    )
+    with open("test_files/iterable_output.csv", newline="") as output_file:
+        expected_output = output_file.read()
+    assert output.getvalue() == expected_output
