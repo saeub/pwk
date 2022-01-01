@@ -19,7 +19,7 @@ def evaluate(expr: CodeType, field_values: Dict[int, Any]):
 
     try:
         result = eval(expr, globals)
-        if isinstance(result, Iterable):
+        if isinstance(result, Iterable) and not isinstance(result, str):
             result = tuple(field for field in result)
         else:
             result = (result,)
