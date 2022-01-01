@@ -51,3 +51,35 @@ def test_header():
         output,
     )
     assert output.getvalue() == "1111111110\r\n"
+
+
+def test_regex():
+    # Using capture groups
+    output = StringIO()
+    pwk.main(
+        [
+            "fullmatch(r'(.+?)://(?:.+?@)?(.+?)(?::.+)?(?:/.+)?', _1)",
+            "test_files/regex.txt",
+            "-o",
+            "csv",
+        ],
+        output,
+    )
+    with open("test_files/regex_output.csv", newline="") as output_file:
+        expected_output = output_file.read()
+    assert output.getvalue() == expected_output
+
+    # Without using capture groups
+    output = StringIO()
+    pwk.main(
+        [
+            "match(r'[^:]+', _1), search(r'\\w+\\.\\w+', _1)",
+            "test_files/regex.txt",
+            "-o",
+            "csv",
+        ],
+        output,
+    )
+    with open("test_files/regex_output.csv", newline="") as output_file:
+        expected_output = output_file.read()
+    assert output.getvalue() == expected_output

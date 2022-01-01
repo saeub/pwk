@@ -7,7 +7,66 @@ import math
 import re
 import sys
 from types import CodeType
-from typing import Any, Dict, Iterable, Iterator, Optional, Sequence, TextIO
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    Iterator,
+    Match,
+    Optional,
+    Sequence,
+    TextIO,
+    Tuple,
+)
+
+INCLUDE_GLOBALS = {
+    # math
+    **{key: value for key, value in math.__dict__.items() if not key.startswith("_")},
+    # re
+    "findall": re.findall,
+    "fullmatch": re.fullmatch,
+    "match": re.match,
+    "search": re.search,
+    "split": re.split,
+    "sub": re.sub,
+    "subn": re.subn,
+    # builtins
+    "abs": abs,
+    "all": all,
+    "any": any,
+    "ascii": ascii,
+    "bin": bin,
+    "chr": chr,
+    "divmod": divmod,
+    "format": format,
+    "hash": hash,
+    "hex": hex,
+    "id": id,
+    "iter": iter,
+    "len": len,
+    "max": max,
+    "min": min,
+    "next": next,
+    "oct": oct,
+    "ord": ord,
+    "pow": pow,
+    "repr": repr,
+    "round": round,
+    "sorted": sorted,
+    "sum": sum,
+}
+
+
+def get_outputs(obj: Any) -> Tuple[str, ...]:
+    if isinstance(obj, str):
+        return (obj,)
+    if isinstance(obj, Match):
+        if len(obj.groups()) > 0:
+            return tuple(obj.groups())
+        return (obj.group(0),)
+    if isinstance(obj, Iterable):
+        return tuple(output for field in obj for output in get_outputs(field))
+    return (str(obj),)
 
 
 def evaluate(
@@ -15,23 +74,19 @@ def evaluate(
     field_values: Dict[int, Any],
     field_names: Optional[Sequence[str]] = None,
 ):
-    globals = {f"_{i}": field for i, field in field_values.items()}
+    namespace: Dict[str, Any] = INCLUDE_GLOBALS
+    namespace.update({f"_{i}": field for i, field in field_values.items()})
     if field_names is not None:
-        globals["_"] = {name: field_values[i + 1] for i, name in enumerate(field_names)}
-    globals.update(math.__dict__)
-    # TODO: better way to disallow user stupidity?
-    globals["input"] = None
-    globals["print"] = None
+        namespace["_"] = {
+            name: field_values[i + 1] for i, name in enumerate(field_names)
+        }
+    namespace["__builtins__"] = None
 
     try:
-        result = eval(expr, globals)
-        if isinstance(result, Iterable) and not isinstance(result, str):
-            result = tuple(field for field in result)
-        else:
-            result = (result,)
+        result = eval(expr, namespace)
     except Exception:
         result = tuple()
-    return result
+    return get_outputs(result)
 
 
 def process(

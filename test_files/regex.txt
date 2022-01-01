@@ -1,0 +1,3 @@
+http://github.com/saeub
+https://github.com/saeub/pwk
+ssh://git@github.com:saeub/pwk.git
