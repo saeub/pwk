@@ -100,3 +100,19 @@ def test_iterable():
     with open("test_files/iterable_output.csv", newline="") as output_file:
         expected_output = output_file.read()
     assert output.getvalue() == expected_output
+
+
+def test_filter():
+    output = StringIO()
+    pwk.main(
+        [
+            "_0 if _n % 2 == 1 else None",
+            "test_files/filter.csv",
+            "-o",
+            "csv",
+        ],
+        output,
+    )
+    with open("test_files/filter_output.csv", newline="") as output_file:
+        expected_output = output_file.read()
+    assert output.getvalue() == expected_output

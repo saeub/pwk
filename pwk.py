@@ -84,11 +84,10 @@ def get_outputs(obj: Any, recurse: bool = True) -> Tuple[str, ...]:
         if len(obj.groups()) > 0:
             return tuple(obj.groups())
         return (obj.group(0),)
-    if isinstance(obj, Iterable):
-        if recurse:
-            return tuple(
-                output for field in obj for output in get_outputs(field, recurse=False)
-            )
+    if isinstance(obj, Iterable) and recurse:
+        return tuple(
+            output for field in obj for output in get_outputs(field, recurse=False)
+        )
     return (str(obj),)
 
 
@@ -96,6 +95,7 @@ def evaluate(
     expr: CodeType,
     field_values: Dict[int, Any],
     field_names: Optional[Sequence[str]] = None,
+    row_number: Optional[int] = None,
 ):
     namespace: Dict[str, Any] = INCLUDE_GLOBALS
     namespace.update({f"_{i}": field for i, field in field_values.items()})
@@ -103,10 +103,14 @@ def evaluate(
         namespace["_"] = {
             name: field_values[i + 1] for i, name in enumerate(field_names)
         }
+    if row_number is not None:
+        namespace["_n"] = row_number
     namespace["__builtins__"] = None
 
     try:
         result = eval(expr, namespace)
+        if result is None:
+            return None
     except Exception:
         result = tuple()
     return get_outputs(result)
@@ -117,11 +121,12 @@ def process(
     rows: Iterable[Sequence[Any]],
     field_names: Optional[Sequence[str]] = None,
 ):
-    for fields in rows:
+    for row_number, fields in enumerate(rows):
         result = evaluate(
             expr,
             {i: field for i, field in enumerate((fields,) + tuple(fields))},
             field_names=field_names,
+            row_number=row_number,
         )
         yield result
 
@@ -215,7 +220,7 @@ def main(cmdargs: Optional[Sequence[str]], output_file: TextIO):
     elif args.input_format == "tsv":
         reader = csv.reader(args.file, delimiter="\t")
     elif args.input_format == "plain":
-        reader = ((line.rstrip("\n\r"),) for line in args.file)
+        reader = ((row.rstrip("\n\r"),) for row in args.file)
 
     if args.output_format == "csv":
         writer = csv.writer(output_file, delimiter=",").writerow
@@ -239,7 +244,8 @@ def main(cmdargs: Optional[Sequence[str]], output_file: TextIO):
         processor = process(args.expr, rows, field_names=field_names)
 
     for fields in processor:
-        writer([postprocess(field) for field in fields])
+        if fields is not None:
+            writer([postprocess(field) for field in fields])
 
 
 if __name__ == "__main__":
