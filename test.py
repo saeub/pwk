@@ -6,7 +6,7 @@ import pwk
 
 
 @pytest.mark.parametrize("input_format", ["csv", "tsv"])
-@pytest.mark.parametrize("output_format", ["csv", "tsv"])
+@pytest.mark.parametrize("output_format", ["csv", "tsv", "plain"])
 def test_file_formats(input_format, output_format):
     input_filename = f"test_files/test.{input_format}"
     output_filename = f"test_files/test_output.{output_format}"
