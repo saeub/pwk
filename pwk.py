@@ -204,7 +204,7 @@ def parse_arguments(cmdargs: Optional[Sequence[str]] = None):
     return args
 
 
-def main(cmdargs: Optional[Sequence[str]], output_file: TextIO):
+def main(cmdargs: Optional[Sequence[str]] = None, output_file: TextIO = sys.stdout):
     args = parse_arguments(cmdargs)
 
     if args.string_numbers:
@@ -249,4 +249,4 @@ def main(cmdargs: Optional[Sequence[str]], output_file: TextIO):
 
 
 if __name__ == "__main__":
-    main(None, sys.stdout)
+    main()
