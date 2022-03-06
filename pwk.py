@@ -6,6 +6,7 @@ import itertools
 import math
 import re
 import sys
+import unicodedata
 from types import CodeType
 from typing import (
     Any,
@@ -30,6 +31,8 @@ INCLUDE_GLOBALS = {
     "split": re.split,
     "sub": re.sub,
     "subn": re.subn,
+    # unicodedata
+    "normalize": unicodedata.normalize,
     # builtins
     "abs": abs,
     "all": all,
