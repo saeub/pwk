@@ -1,6 +1,8 @@
 # pwk
 
 [![Test](https://github.com/saeub/pwk/actions/workflows/test.yaml/badge.svg)](https://github.com/saeub/pwk/actions/workflows/test.yaml)
+[![Publish](https://github.com/saeub/pwk/actions/workflows/publish.yaml/badge.svg)](https://github.com/saeub/pwk/actions/workflows/publish.yaml)
+[![PyPI](https://img.shields.io/pypi/v/pwk?label=PyPI)](https://pypi.org/project/pwk/)
 
 **pwk** is a simple script to quickly process and reformat tabular data using Python expressions.
 
