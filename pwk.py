@@ -185,8 +185,12 @@ def parse_arguments(cmdargs: Optional[Sequence[str]] = None):
     parser.add_argument("expr", type=compile_expr)
     parser.add_argument("file", type=open, nargs="?", default=sys.stdin)
 
-    parser.add_argument("-i", dest="input_format", choices=["csv", "tsv", "plain"])
-    parser.add_argument("-o", dest="output_format", choices=["csv", "tsv", "plain"])
+    parser.add_argument(
+        "-i", dest="input_format", choices=["csv", "tsv", "ssv", "plain"]
+    )
+    parser.add_argument(
+        "-o", dest="output_format", choices=["csv", "tsv", "ssv", "plain"]
+    )
 
     parser.add_argument("-s", dest="string_numbers", action="store_true")
     parser.add_argument("-a", dest="aggregate", action="store_true")
@@ -199,6 +203,8 @@ def parse_arguments(cmdargs: Optional[Sequence[str]] = None):
             args.input_format = "csv"
         elif args.file.name.endswith(".tsv"):
             args.input_format = "tsv"
+        elif args.file.name.endswith(".ssv"):
+            args.input_format = "ssv"
         else:
             args.input_format = "plain"
     if args.output_format is None:
@@ -222,6 +228,8 @@ def main(cmdargs: Optional[Sequence[str]] = None, output_file: TextIO = sys.stdo
         reader = csv.reader(args.file, delimiter=",")
     elif args.input_format == "tsv":
         reader = csv.reader(args.file, delimiter="\t")
+    elif args.input_format == "ssv":
+        reader = csv.reader(args.file, delimiter=";")
     elif args.input_format == "plain":
         reader = ((row.rstrip("\n\r"),) for row in args.file)
 
@@ -229,6 +237,8 @@ def main(cmdargs: Optional[Sequence[str]] = None, output_file: TextIO = sys.stdo
         writer = csv.writer(output_file, delimiter=",").writerow
     elif args.output_format == "tsv":
         writer = csv.writer(output_file, delimiter="\t").writerow
+    elif args.output_format == "ssv":
+        writer = csv.writer(output_file, delimiter=";").writerow
     elif args.output_format == "plain":
 
         def writer(fields):
