@@ -116,3 +116,31 @@ def test_filter():
     with open("test_files/filter_output.csv", newline="") as output_file:
         expected_output = output_file.read()
     assert output.getvalue() == expected_output
+
+
+def test_import():
+    output = StringIO()
+    pwk.main(
+        [
+            "html.escape(_1), html.unescape(_2)",
+            "test_files/import.csv",
+            "-o",
+            "csv",
+            "-I",
+            "html",
+        ],
+        output,
+    )
+    with open("test_files/import_output.csv", newline="") as output_file:
+        expected_output = output_file.read()
+    assert output.getvalue() == expected_output
+
+
+def test_syntax_error():
+    with pytest.raises(SyntaxError):
+        pwk.main(["_1 ? _2"])
+
+
+def test_runtime_error():
+    with pytest.raises(ZeroDivisionError):
+        pwk.main(["-i", "csv", "_1 / _2", "test_files/error_zerodiv.csv"])
