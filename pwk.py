@@ -2,12 +2,13 @@
 
 import argparse
 import csv
+import importlib
 import itertools
 import math
 import re
 import sys
 import unicodedata
-from types import CodeType
+from types import CodeType, ModuleType
 from typing import (
     Any,
     Dict,
@@ -99,8 +100,11 @@ def evaluate(
     field_values: Dict[int, Any],
     field_names: Optional[Sequence[str]] = None,
     row_number: Optional[int] = None,
+    imported_modules: Optional[Dict[str, ModuleType]] = None,
 ):
     namespace: Dict[str, Any] = INCLUDE_GLOBALS
+    if imported_modules is not None:
+        namespace.update(imported_modules)
     namespace.update({f"_{i}": field for i, field in field_values.items()})
     if field_names is not None:
         namespace["_"] = {
@@ -108,14 +112,11 @@ def evaluate(
         }
     if row_number is not None:
         namespace["_n"] = row_number
-    namespace["__builtins__"] = None
+    namespace["__builtins__"] = {}
 
-    try:
-        result = eval(expr, namespace)
-        if result is None:
-            return None
-    except Exception:
-        result = tuple()
+    result = eval(expr, namespace)
+    if result is None:
+        return None
     return get_outputs(result)
 
 
@@ -123,6 +124,7 @@ def process(
     expr: CodeType,
     rows: Iterable[Sequence[Any]],
     field_names: Optional[Sequence[str]] = None,
+    imported_modules: Optional[Dict[str, ModuleType]] = None,
 ):
     for row_number, fields in enumerate(rows):
         result = evaluate(
@@ -130,6 +132,7 @@ def process(
             {i: field for i, field in enumerate((fields,) + tuple(fields))},
             field_names=field_names,
             row_number=row_number,
+            imported_modules=imported_modules,
         )
         yield result
 
@@ -138,6 +141,7 @@ def process_aggregate(
     expr: CodeType,
     rows: Iterable[Sequence[Any]],
     field_names: Optional[Sequence[str]] = None,
+    imported_modules: Optional[Dict[str, ModuleType]] = None,
 ):
     if field_names is not None:
         num_fields = len(field_names)
@@ -158,7 +162,9 @@ def process_aggregate(
             fields[field_number] for fields in row_iterator
         ]
 
-    result = evaluate(expr, field_values, field_names=field_names)
+    result = evaluate(
+        expr, field_values, field_names=field_names, imported_modules=imported_modules
+    )
     yield result
 
 
@@ -195,8 +201,10 @@ def parse_arguments(cmdargs: Optional[Sequence[str]] = None):
     parser.add_argument("-s", dest="string_numbers", action="store_true")
     parser.add_argument("-a", dest="aggregate", action="store_true")
     parser.add_argument("-H", dest="header", action="store_true")
+    parser.add_argument("-I", dest="imports")
 
     args = parser.parse_args(cmdargs)
+    args.imports = args.imports.split(",")
 
     if args.input_format is None:
         if args.file.name.endswith(".csv"):
@@ -249,12 +257,24 @@ def main(cmdargs: Optional[Sequence[str]] = None, output_file: TextIO = sys.stdo
     if args.header:
         field_names = next(reader)
 
+    if args.imports is not None:
+        imported_modules = {
+            module_name: importlib.import_module(module_name)
+            for module_name in args.imports
+        }
+    else:
+        imported_modules = None
+
     rows = ([preprocess(field) for field in fields] for fields in reader)
 
     if args.aggregate:
-        processor = process_aggregate(args.expr, rows, field_names=field_names)
+        processor = process_aggregate(
+            args.expr, rows, field_names=field_names, imported_modules=imported_modules
+        )
     else:
-        processor = process(args.expr, rows, field_names=field_names)
+        processor = process(
+            args.expr, rows, field_names=field_names, imported_modules=imported_modules
+        )
 
     for fields in processor:
         if fields is not None:
