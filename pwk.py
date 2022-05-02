@@ -123,8 +123,8 @@ def evaluate(
 def process(
     expr: CodeType,
     rows: Iterable[Sequence[Any]],
-    field_names: Optional[Sequence[str]] = None,
-    imported_modules: Optional[Dict[str, ModuleType]] = None,
+    field_names: Optional[Sequence[str]],
+    imported_modules: Dict[str, ModuleType],
 ):
     for row_number, fields in enumerate(rows):
         result = evaluate(
@@ -140,8 +140,8 @@ def process(
 def process_aggregate(
     expr: CodeType,
     rows: Iterable[Sequence[Any]],
-    field_names: Optional[Sequence[str]] = None,
-    imported_modules: Optional[Dict[str, ModuleType]] = None,
+    field_names: Optional[Sequence[str]],
+    imported_modules: Dict[str, ModuleType],
 ):
     if field_names is not None:
         num_fields = len(field_names)
@@ -204,7 +204,7 @@ def parse_arguments(cmdargs: Optional[Sequence[str]] = None):
     parser.add_argument("-I", dest="imports")
 
     args = parser.parse_args(cmdargs)
-    args.imports = args.imports.split(",")
+    args.imports = args.imports.split(",") if args.imports else []
 
     if args.input_format is None:
         if args.file.name.endswith(".csv"):
@@ -257,24 +257,17 @@ def main(cmdargs: Optional[Sequence[str]] = None, output_file: TextIO = sys.stdo
     if args.header:
         field_names = next(reader)
 
-    if args.imports is not None:
-        imported_modules = {
-            module_name: importlib.import_module(module_name)
-            for module_name in args.imports
-        }
-    else:
-        imported_modules = None
+    imported_modules = {
+        module_name: importlib.import_module(module_name)
+        for module_name in args.imports
+    }
 
     rows = ([preprocess(field) for field in fields] for fields in reader)
 
     if args.aggregate:
-        processor = process_aggregate(
-            args.expr, rows, field_names=field_names, imported_modules=imported_modules
-        )
+        processor = process_aggregate(args.expr, rows, field_names, imported_modules)
     else:
-        processor = process(
-            args.expr, rows, field_names=field_names, imported_modules=imported_modules
-        )
+        processor = process(args.expr, rows, field_names, imported_modules)
 
     for fields in processor:
         if fields is not None:
